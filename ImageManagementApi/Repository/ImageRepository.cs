@@ -3,63 +3,115 @@ using ImageManagementApi.Models;
 
 namespace ImageManagementApi.Repository
 {
-    public class ImageRepository
+    public class ImageRepository : IImageRepository
     {
         private readonly string _filePath = Path.Combine("images", "images.json");
         private List<Image> _images;
+        private readonly ILogger<ImageRepository> _logger;
 
-        public ImageRepository()
+        public ImageRepository(ILogger<ImageRepository> logger)
         {
-            if (File.Exists(_filePath))
+            _logger = logger;
+
+            try
             {
-                var json = File.ReadAllText(_filePath);
-                _images = JsonSerializer.Deserialize<List<Image>>(json) ?? new List<Image>();
+                if (File.Exists(_filePath))
+                {
+                    var json = File.ReadAllText(_filePath);
+                    _images = JsonSerializer.Deserialize<List<Image>>(json) ?? new List<Image>();
+                }
+                else
+                {
+                    _images = new List<Image>();
+                }
             }
-            else
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error loading data from file.");
                 _images = new List<Image>();
             }
         }
 
-        public IEnumerable<Image> GetAll() => _images;
+        public IEnumerable<Image> GetAll()
+        {
+            return _images;
+        }
 
-        public Image GetById(int id) => _images.FirstOrDefault(i => i.Id == id);
+        public Image GetById(int id)
+        {
+            try
+            {
+                return _images.FirstOrDefault(i => i.Id == id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting image by ID {Id}.", id);
+                return null;
+            }
+        }
 
         public void Add(Image image)
         {
-            image.Id = _images.Any() ? _images.Max(i => i.Id) + 1 : 1;
-            _images.Add(image);
-            SaveToFile();
+            try
+            {
+                image.Id = _images.Any() ? _images.Max(i => i.Id) + 1 : 1;
+                _images.Add(image);
+                SaveToFile();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding image.");
+            }
         }
 
-        public void Update(int id ,Image image)
+        public void Update(int id, Image image)
         {
-            var index = _images.FindIndex(i => i.Id == id);
-            if (index != -1)
+            try
             {
-               var data = _images[index] = image;
-                data.DateCreated = DateTime.Now;
-                data.Id = id;
-                data.User = image.User;
-                SaveToFile();
+                var index = _images.FindIndex(i => i.Id == id);
+                if (index != -1)
+                {
+                    var data = _images[index] = image;
+                    data.DateCreated = DateTime.Now;
+                    data.Id = id;
+                    data.User = image.User;
+                    SaveToFile();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating image with ID {Id}.", id);
             }
         }
 
         public void Delete(int id)
         {
-            var image = _images.FirstOrDefault(i => i.Id == id);
-            if (image != null)
+            try
             {
-                _images.Remove(image);
-                SaveToFile();
+                var image = _images.FirstOrDefault(i => i.Id == id);
+                if (image != null)
+                {
+                    _images.Remove(image);
+                    SaveToFile();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting image with ID {Id}.", id);
             }
         }
 
         private void SaveToFile()
         {
-            var json = JsonSerializer.Serialize(_images);
-            File.WriteAllText(_filePath, json);
+            try
+            {
+                var json = JsonSerializer.Serialize(_images);
+                File.WriteAllText(_filePath, json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving data to file.");
+            }
         }
     }
 }
-
